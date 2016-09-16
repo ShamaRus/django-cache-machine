@@ -198,7 +198,7 @@ class RedisInvalidator(Invalidator):
 
     @safe_redis(set)
     def get_flush_lists(self, keys):
-        flush_list = redis.sunion(list(map(self.safe_key, keys)))
+        flush_list = redis_local.sunion(list(map(self.safe_key, keys)))
         return [k.decode('utf-8') for k in flush_list]
 
     @safe_redis(None)
@@ -239,10 +239,10 @@ def parse_backend_uri(backend_uri):
     return host, params
 
 
-def get_redis_backend():
+def get_redis_backend(uri=None):
     """Connect to redis from a string like CACHE_BACKEND."""
     # From django-redis-cache.
-    server, params = parse_backend_uri(settings.REDIS_BACKEND)
+    server, params = parse_backend_uri(uri or settings.REDIS_BACKEND)
     db = params.pop('db', 0)
     try:
         db = int(db)
@@ -270,6 +270,11 @@ if config.CACHE_MACHINE_NO_INVALIDATION:
     invalidator = NullInvalidator()
 elif config.CACHE_MACHINE_USE_REDIS:
     redis = get_redis_backend()
+    if config.REDIS_BACKEND_LOCAL:
+        redis_local = get_redis_backend(config.REDIS_BACKEND_LOCAL)
+    else:
+        redis_local = redis
+
     invalidator = RedisInvalidator()
 else:
     invalidator = Invalidator()
